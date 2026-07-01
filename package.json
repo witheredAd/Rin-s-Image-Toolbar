@@ -1,6 +1,6 @@
 {
 	"name": "image-toolbar",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Obsidian plugin: hover toolbar for images (copy, crop, fullscreen)",
 	"main": "main.js",
 	"scripts": {
