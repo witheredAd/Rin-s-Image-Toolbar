@@ -3,7 +3,7 @@
 	"name": "Rin Image Toolbar",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Hover over images for toolbar: copy, crop, and fullscreen",
-	"author": "",
+	"description": "Hover over images for a toolbar with copy, crop, and fullscreen.",
+	"author": "Rin",
 	"isDesktopOnly": false
 }
