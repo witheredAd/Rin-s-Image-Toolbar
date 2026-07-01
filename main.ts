@@ -10,6 +10,15 @@ const BODY_OVERFLOW_HIDDEN_CLASS = "image-toolbar-overflow-hidden";
 const FULLSCREEN_OVERLAY_CLASS = "image-fullscreen-overlay";
 const FULLSCREEN_CLOSE_CLASS = "image-fullscreen-close";
 
+interface CMEditorView {
+	posAtDOM(node: Node): number;
+}
+
+interface VaultAdapter {
+	getBasePath?(): string;
+	basePath?: string;
+}
+
 interface CropRect {
 	x: number;
 	y: number;
@@ -82,14 +91,14 @@ export default class ImageToolbarPlugin extends Plugin {
 
 		const onMouseOver = (e: MouseEvent) => {
 			const target = e.target as HTMLElement;
-			if (target.tagName === "IMG" && HTMLImageElement.prototype.isPrototypeOf(target)) {
+			if (target.tagName === "IMG") {
 				this.showToolbar(target as HTMLImageElement);
 			}
 		};
 
 		const onMouseOut = (e: MouseEvent) => {
 			const target = e.target as HTMLElement;
-			if (target.tagName === "IMG" && HTMLImageElement.prototype.isPrototypeOf(target)) {
+			if (target.tagName === "IMG") {
 				this.scheduleHide();
 			}
 		};
@@ -255,9 +264,8 @@ export default class ImageToolbarPlugin extends Plugin {
 			const qIdx = pathname.indexOf("?");
 			if (qIdx >= 0) pathname = pathname.substring(0, qIdx);
 
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const adapter = (this.app.vault.adapter as any);
-			const basePath: string | undefined = adapter?.getBasePath?.() || adapter?.basePath;
+			const adapter = this.app.vault.adapter as unknown as VaultAdapter;
+			const basePath = adapter?.getBasePath?.() || adapter?.basePath;
 			if (basePath && pathname.startsWith(basePath)) {
 				pathname = pathname.slice(basePath.length);
 			}
@@ -276,8 +284,7 @@ export default class ImageToolbarPlugin extends Plugin {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!view) return;
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const cm: { posAtDOM?: (node: Node) => number } = (view.editor as any).cm;
+		const cm = (view.editor as unknown as { cm?: CMEditorView }).cm;
 		if (!cm || !cm.posAtDOM) return;
 
 		const pos = cm.posAtDOM(img);
