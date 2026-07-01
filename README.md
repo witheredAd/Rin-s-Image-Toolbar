@@ -1,4 +1,4 @@
-# Rin's Image Toolbar
+# Rin Image Toolbar
 
 Obsidian plugin that shows a floating toolbar when you hover over images in **Live Preview** mode.
 
