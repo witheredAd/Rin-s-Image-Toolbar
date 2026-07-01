@@ -185,3 +185,15 @@
 .image-fullscreen-close:hover {
 	background: rgba(255, 255, 255, 0.3);
 }
+
+.image-toolbar-crop-hidden {
+	display: none;
+}
+
+.image-toolbar-canvas-hidden {
+	display: none;
+}
+
+.image-toolbar-overflow-hidden {
+	overflow: hidden;
+}

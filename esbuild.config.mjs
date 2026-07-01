@@ -1,6 +1,5 @@
 import esbuild from "esbuild";
 import process from "process";
-import builtins from "builtin-modules";
 
 const prod = process.argv[2] === "production";
 
@@ -9,7 +8,6 @@ const context = await esbuild.context({
 	bundle: true,
 	external: [
 		"obsidian",
-		...builtins,
 	],
 	format: "cjs",
 	target: "es2018",

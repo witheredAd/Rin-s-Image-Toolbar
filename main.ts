@@ -1,18 +1,14 @@
-import { App, MarkdownView, Modal, Notice, Plugin } from "obsidian";
+import { addIcon, App, MarkdownView, Modal, Notice, Plugin, setIcon } from "obsidian";
 
 const TOOLBAR_CONTAINER_CLASS = "image-toolbar-container";
 const TOOLBAR_VISIBLE_CLASS = "visible";
 const TOOLBAR_BTN_CLASS = "image-toolbar-btn";
+const CROP_BTN_HIDDEN_CLASS = "image-toolbar-crop-hidden";
+const CANVAS_HIDDEN_CLASS = "image-toolbar-canvas-hidden";
+const BODY_OVERFLOW_HIDDEN_CLASS = "image-toolbar-overflow-hidden";
 
 const FULLSCREEN_OVERLAY_CLASS = "image-fullscreen-overlay";
 const FULLSCREEN_CLOSE_CLASS = "image-fullscreen-close";
-
-const ICONS = {
-	copy: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
-	crop: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path><path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path></svg>`,
-	fullscreen: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`,
-	close: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
-};
 
 interface CropRect {
 	x: number;
@@ -28,6 +24,11 @@ export default class ImageToolbarPlugin extends Plugin {
 	private hideTimer: ReturnType<typeof setTimeout> | null = null;
 
 	async onload() {
+		addIcon("image-toolbar-copy", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`);
+		addIcon("image-toolbar-crop", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path><path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path></svg>`);
+		addIcon("image-toolbar-fullscreen", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`);
+		addIcon("image-toolbar-close", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`);
+
 		this.createToolbar();
 		this.registerDocListeners();
 	}
@@ -42,15 +43,15 @@ export default class ImageToolbarPlugin extends Plugin {
 		const container = document.body.createDiv(TOOLBAR_CONTAINER_CLASS);
 
 		const copyBtn = container.createEl("button", { cls: TOOLBAR_BTN_CLASS });
-		copyBtn.innerHTML = ICONS.copy;
+		setIcon(copyBtn, "image-toolbar-copy");
 		copyBtn.setAttribute("aria-label", "Copy image");
 		copyBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
-			if (this.currentImg) this.copyImage(this.currentImg);
+			if (this.currentImg) void this.copyImage(this.currentImg);
 		});
 
 		const cropBtn = container.createEl("button", { cls: TOOLBAR_BTN_CLASS });
-		cropBtn.innerHTML = ICONS.crop;
+		setIcon(cropBtn, "image-toolbar-crop");
 		cropBtn.setAttribute("aria-label", "Crop image");
 		cropBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
@@ -58,7 +59,7 @@ export default class ImageToolbarPlugin extends Plugin {
 		});
 
 		const fullscreenBtn = container.createEl("button", { cls: TOOLBAR_BTN_CLASS });
-		fullscreenBtn.innerHTML = ICONS.fullscreen;
+		setIcon(fullscreenBtn, "image-toolbar-fullscreen");
 		fullscreenBtn.setAttribute("aria-label", "Fullscreen image");
 		fullscreenBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
@@ -77,16 +78,18 @@ export default class ImageToolbarPlugin extends Plugin {
 	}
 
 	private registerDocListeners() {
+		const doc = document;
+
 		const onMouseOver = (e: MouseEvent) => {
 			const target = e.target as HTMLElement;
-			if (target.tagName === "IMG" && target instanceof HTMLImageElement) {
-				this.showToolbar(target);
+			if (target.tagName === "IMG" && HTMLImageElement.prototype.isPrototypeOf(target)) {
+				this.showToolbar(target as HTMLImageElement);
 			}
 		};
 
 		const onMouseOut = (e: MouseEvent) => {
 			const target = e.target as HTMLElement;
-			if (target.tagName === "IMG" && target instanceof HTMLImageElement) {
+			if (target.tagName === "IMG" && HTMLImageElement.prototype.isPrototypeOf(target)) {
 				this.scheduleHide();
 			}
 		};
@@ -95,14 +98,14 @@ export default class ImageToolbarPlugin extends Plugin {
 			this.hideToolbar();
 		};
 
-		document.addEventListener("mouseover", onMouseOver, true);
-		document.addEventListener("mouseout", onMouseOut, true);
-		document.addEventListener("scroll", onScroll, true);
+		doc.addEventListener("mouseover", onMouseOver, true);
+		doc.addEventListener("mouseout", onMouseOut, true);
+		doc.addEventListener("scroll", onScroll, true);
 
 		this.register(() => {
-			document.removeEventListener("mouseover", onMouseOver, true);
-			document.removeEventListener("mouseout", onMouseOut, true);
-			document.removeEventListener("scroll", onScroll, true);
+			doc.removeEventListener("mouseover", onMouseOver, true);
+			doc.removeEventListener("mouseout", onMouseOut, true);
+			doc.removeEventListener("scroll", onScroll, true);
 		});
 	}
 
@@ -123,7 +126,7 @@ export default class ImageToolbarPlugin extends Plugin {
 
 		const inLivePreview = this.isInLivePreview(img);
 		if (this.cropBtn) {
-			this.cropBtn.style.display = inLivePreview ? "" : "none";
+			this.cropBtn.classList.toggle(CROP_BTN_HIDDEN_CLASS, !inLivePreview);
 		}
 
 		const rect = img.getBoundingClientRect();
@@ -142,8 +145,7 @@ export default class ImageToolbarPlugin extends Plugin {
 			left = window.innerWidth - toolbarW - 8;
 		}
 
-		this.toolbar.style.left = `${left}px`;
-		this.toolbar.style.top = `${top}px`;
+		this.toolbar.setCssProps?.({ left: `${left}px`, top: `${top}px` });
 		this.toolbar.classList.add(TOOLBAR_VISIBLE_CLASS);
 	}
 
@@ -154,14 +156,14 @@ export default class ImageToolbarPlugin extends Plugin {
 
 	private scheduleHide() {
 		this.clearHideTimer();
-		this.hideTimer = setTimeout(() => {
+		this.hideTimer = window.setTimeout(() => {
 			this.hideToolbar();
 		}, 300);
 	}
 
 	private clearHideTimer() {
 		if (this.hideTimer) {
-			clearTimeout(this.hideTimer);
+			window.clearTimeout(this.hideTimer);
 			this.hideTimer = null;
 		}
 	}
@@ -253,8 +255,9 @@ export default class ImageToolbarPlugin extends Plugin {
 			const qIdx = pathname.indexOf("?");
 			if (qIdx >= 0) pathname = pathname.substring(0, qIdx);
 
-			const adapter = this.app.vault.adapter as any;
-			const basePath = adapter.getBasePath?.() || adapter.basePath;
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const adapter = (this.app.vault.adapter as any);
+			const basePath: string | undefined = adapter?.getBasePath?.() || adapter?.basePath;
 			if (basePath && pathname.startsWith(basePath)) {
 				pathname = pathname.slice(basePath.length);
 			}
@@ -273,7 +276,8 @@ export default class ImageToolbarPlugin extends Plugin {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!view) return;
 
-		const cm = (view.editor as any).cm;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const cm: { posAtDOM?: (node: Node) => number } = (view.editor as any).cm;
 		if (!cm || !cm.posAtDOM) return;
 
 		const pos = cm.posAtDOM(img);
@@ -385,7 +389,7 @@ class CropModal extends Modal {
 		this.wrapper = wrapper;
 
 		this.canvas = wrapper.createEl("canvas");
-		this.canvas.style.display = "none";
+		this.canvas.classList.add(CANVAS_HIDDEN_CLASS);
 
 		const controls = root.createDiv("image-crop-controls");
 		const addField = (label: string, id: string) => {
@@ -417,7 +421,7 @@ class CropModal extends Modal {
 		});
 		cancelBtn.addEventListener("click", () => this.close());
 
-		this.loadImage();
+		void this.loadImage();
 	}
 
 	onClose() {
@@ -465,7 +469,7 @@ class CropModal extends Modal {
 
 		this.canvas.width = dispW;
 		this.canvas.height = dispH;
-		this.canvas.style.display = "block";
+		this.canvas.classList.remove(CANVAS_HIDDEN_CLASS);
 
 		this.drawCanvas();
 
@@ -732,7 +736,7 @@ class CropModal extends Modal {
 		const ctx = outCanvas.getContext("2d");
 		if (!ctx) return;
 
-		ctx.drawImage(this.imageEl!, sx, sy, sw, sh, 0, 0, sw, sh);
+		ctx.drawImage(this.imageEl, sx, sy, sw, sh, 0, 0, sw, sh);
 
 		const ext = this.guessExt(this.imgSrc);
 
@@ -752,7 +756,9 @@ class CropModal extends Modal {
 			const pathname = decodeURIComponent(url.pathname);
 			const m = pathname.match(/\.([a-z0-9]+)$/i);
 			if (m) return "." + m[1].toLowerCase();
-		} catch {}
+		} catch {
+			// fall through to default .png
+		}
 		return ".png";
 	}
 
@@ -775,7 +781,7 @@ class FullscreenOverlay {
 		img.src = imgSrc;
 
 		const closeBtn = this.overlay.createEl("button", { cls: FULLSCREEN_CLOSE_CLASS });
-		closeBtn.innerHTML = ICONS.close;
+		setIcon(closeBtn, "image-toolbar-close");
 		closeBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
 			this.close();
@@ -785,11 +791,11 @@ class FullscreenOverlay {
 	}
 
 	open() {
-		document.body.style.overflow = "hidden";
+		document.body.classList.add(BODY_OVERFLOW_HIDDEN_CLASS);
 	}
 
 	close() {
-		document.body.style.overflow = "";
+		document.body.classList.remove(BODY_OVERFLOW_HIDDEN_CLASS);
 		this.overlay.remove();
 		document.removeEventListener("keydown", this.onKeyDown, true);
 	}
