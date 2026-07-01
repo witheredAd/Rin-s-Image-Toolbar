@@ -1,3 +1,4 @@
 node_modules/
 *.zip
+main.js
 .DS_Store
