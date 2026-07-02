@@ -210,34 +210,20 @@ export default class ImageToolbarPlugin extends Plugin {
 		try {
 			const arrayBuffer = await blob.arrayBuffer();
 
+			const baseName = this.extractBasenameFromUrl(src);
+			if (!ext.startsWith(".")) ext = "." + ext;
+
 			let folder = "";
-			let baseName = "";
-
 			if (this.isVaultImage(src)) {
-				const vaultPath = this.getVaultPathFromSrc(src);
-				if (vaultPath) {
-					const lastSlash = vaultPath.lastIndexOf("/");
-					folder = lastSlash >= 0 ? vaultPath.substring(0, lastSlash) : "";
-					const fileName = lastSlash >= 0 ? vaultPath.substring(lastSlash + 1) : vaultPath;
-					const dotIdx = fileName.lastIndexOf(".");
-					baseName = dotIdx >= 0 ? fileName.substring(0, dotIdx) : fileName;
+				const activeFile = this.app.workspace.getActiveFile();
+				if (activeFile?.parent && activeFile.parent.path !== "/") {
+					folder = activeFile.parent.path;
 				}
-			}
-
-			if (!baseName) {
-				const url = new URL(src);
-				const pathParts = url.pathname.split("/");
-				const rawName = pathParts[pathParts.length - 1] || `image_${Date.now()}`;
-				const dotIdx = rawName.lastIndexOf(".");
-				baseName = dotIdx >= 0 ? rawName.substring(0, dotIdx) : rawName;
-				if (!ext.startsWith(".")) ext = "." + ext;
 			}
 
 			savePath = folder ? `${folder}/${baseName}_crop${ext}` : `${baseName}_crop${ext}`;
 			let counter = 1;
-			while (true) {
-				const exists = this.app.vault.getAbstractFileByPath(savePath);
-				if (!exists) break;
+			while (this.app.vault.getAbstractFileByPath(savePath)) {
 				savePath = folder
 					? `${folder}/${baseName}_crop${counter}${ext}`
 					: `${baseName}_crop${counter}${ext}`;
@@ -253,29 +239,22 @@ export default class ImageToolbarPlugin extends Plugin {
 		}
 	}
 
-	private isVaultImage(src: string): boolean {
-		return src.includes("app://");
-	}
-
-	private getVaultPathFromSrc(src: string): string | null {
+	private extractBasenameFromUrl(src: string): string {
 		try {
 			const url = new URL(src);
-			let pathname = decodeURIComponent(url.pathname);
-			const qIdx = pathname.indexOf("?");
-			if (qIdx >= 0) pathname = pathname.substring(0, qIdx);
-
-			const adapter = this.app.vault.adapter as unknown as VaultAdapter;
-			const basePath = adapter?.getBasePath?.() || adapter?.basePath;
-			if (basePath && pathname.startsWith(basePath)) {
-				pathname = pathname.slice(basePath.length);
-			}
-			if (pathname.startsWith("/")) {
-				pathname = pathname.slice(1);
-			}
-			return pathname;
+			const parts = url.pathname.split("/");
+			const raw = parts[parts.length - 1] || "";
+			const clean = raw.split("?")[0];
+			const decoded = decodeURIComponent(clean);
+			const dot = decoded.lastIndexOf(".");
+			return dot >= 0 ? decoded.substring(0, dot) : decoded || `image_${Date.now()}`;
 		} catch {
-			return null;
+			return `image_${Date.now()}`;
 		}
+	}
+
+	private isVaultImage(src: string): boolean {
+		return src.startsWith("app://");
 	}
 
 	private replaceImageRefInNote(img: HTMLImageElement, croppedPath: string) {
@@ -299,27 +278,20 @@ export default class ImageToolbarPlugin extends Plugin {
 		const wikiIdx = prefix.lastIndexOf("![[");
 		const mdIdx = prefix.lastIndexOf("![");
 
+		const origName = this.extractBasenameFromUrl(img.src);
+		const cropName = croppedPath.includes("/")
+			? croppedPath.substring(croppedPath.lastIndexOf("/") + 1)
+			: croppedPath;
+
 		if (wikiIdx >= 0) {
 			const refText = lineText.substring(wikiIdx, endPos.ch);
-			const src = img.src;
-			const origPath = this.getVaultPathFromSrc(src);
-			if (!origPath) return;
-			const origName = origPath.includes("/") ? origPath.substring(origPath.lastIndexOf("/") + 1) : origPath;
-			const cropName = croppedPath.includes("/") ? croppedPath.substring(croppedPath.lastIndexOf("/") + 1) : croppedPath;
 			const newRef = refText.replace(origName, cropName);
 			if (newRef === refText) return;
-
 			editor.replaceRange(newRef, { line: endPos.line, ch: wikiIdx }, { line: endPos.line, ch: endPos.ch });
 		} else if (mdIdx >= 0) {
 			const refText = lineText.substring(mdIdx, endPos.ch);
-			const src = img.src;
-			const origPath = this.getVaultPathFromSrc(src);
-			if (!origPath) return;
-			const origName = origPath.includes("/") ? origPath.substring(origPath.lastIndexOf("/") + 1) : origPath;
-			const cropName = croppedPath.includes("/") ? croppedPath.substring(croppedPath.lastIndexOf("/") + 1) : croppedPath;
 			const newRef = refText.replace(origName, cropName);
 			if (newRef === refText) return;
-
 			editor.replaceRange(newRef, { line: endPos.line, ch: mdIdx }, { line: endPos.line, ch: endPos.ch });
 		}
 	}
