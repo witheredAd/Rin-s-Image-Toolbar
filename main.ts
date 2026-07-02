@@ -266,8 +266,15 @@ export default class ImageToolbarPlugin extends Plugin {
 
 			const adapter = this.app.vault.adapter as unknown as VaultAdapter;
 			const basePath = adapter?.getBasePath?.() || adapter?.basePath;
-			if (basePath && pathname.startsWith(basePath)) {
-				pathname = pathname.slice(basePath.length);
+			if (basePath) {
+				const normBase = basePath.replace(/\\/g, "/");
+				let normPath = pathname.replace(/\\/g, "/");
+				if (normPath.startsWith("/")) {
+					normPath = normPath.slice(1);
+				}
+				if (normPath.startsWith(normBase)) {
+					pathname = normPath.slice(normBase.length);
+				}
 			}
 			if (pathname.startsWith("/")) {
 				pathname = pathname.slice(1);
