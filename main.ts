@@ -269,12 +269,11 @@ export default class ImageToolbarPlugin extends Plugin {
 			const basePath = adapter?.getBasePath?.() || adapter?.basePath;
 			if (basePath) {
 				const normBase = basePath.replace(/\\/g, "/");
-				let normPath = pathname.replace(/\\/g, "/");
-				if (normPath.startsWith("/")) {
-					normPath = normPath.slice(1);
-				}
+				const normPath = pathname.replace(/\\/g, "/");
 				if (normPath.startsWith(normBase)) {
 					pathname = normPath.slice(normBase.length);
+				} else if (normPath.startsWith("/" + normBase)) {
+					pathname = normPath.slice(normBase.length + 1);
 				}
 			}
 			if (pathname.startsWith("/")) {
