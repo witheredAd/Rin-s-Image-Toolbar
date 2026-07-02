@@ -230,6 +230,7 @@ export default class ImageToolbarPlugin extends Plugin {
 				counter++;
 			}
 
+			console.log("[image-toolbar] savePath:", JSON.stringify(savePath));
 			await this.app.vault.createBinary(savePath, arrayBuffer);
 			new Notice(`Saved: ${savePath}`);
 			this.replaceImageRefInNote(img, savePath);
