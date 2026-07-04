@@ -1,7 +1,7 @@
 {
 	"id": "image-toolbar",
 	"name": "Rin Image Toolbar",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"minAppVersion": "0.15.0",
 	"description": "Hover over images for a toolbar with copy, crop, and fullscreen.",
 	"author": "Rin",
